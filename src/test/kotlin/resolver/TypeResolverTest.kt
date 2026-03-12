@@ -45,4 +45,20 @@ class TypeResolverTest {
             assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
         }
     }
+
+    @Nested
+    inner class SimpleTypeResolution {
+
+        @Test
+        fun resolvesSimpleTypeFromUnnamedTag() {
+            val variable = makeVariable("\$user", makeDocBlock(listOf("User")))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun resolvesFullyQualifiedClassName() {
+            val variable = makeVariable("\$user", makeDocBlock(listOf("\\App\\Models\\User")))
+            assertEquals(TypeFactory.createType("\\App\\Models\\User"), inferTypeFromDoc(variable))
+        }
+    }
 }
