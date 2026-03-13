@@ -61,4 +61,26 @@ class TypeResolverTest {
             assertEquals(TypeFactory.createType("\\App\\Models\\User"), inferTypeFromDoc(variable))
         }
     }
+
+    @Nested
+    inner class VariableNameMatching {
+
+        @Test
+        fun returnsMatchingTypeWhenTagVariableMatchesInspectedVariable() {
+            val variable = makeVariable("\$log", makeDocBlock(listOf("Logger \$log")))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun returnsMixedWhenTagVariableDoesNotMatch() {
+            val variable = makeVariable("\$guest", makeDocBlock(listOf("Admin \$adm")))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun unnamedTagAppliesToAnyVariable() {
+            val variable = makeVariable("\$anything", makeDocBlock(listOf("User")))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+        }
+    }
 }
