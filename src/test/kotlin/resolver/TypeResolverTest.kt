@@ -118,4 +118,21 @@ class TypeResolverTest {
             assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
         }
     }
+
+    @Nested
+    inner class NullableShorthand {
+
+        @Test
+        fun handlesNullableShorthandAsUnionWithNull() {
+            val variable = makeVariable("\$user", makeDocBlock(listOf("?User")))
+            val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("User"), TypeFactory.createType("null")))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun returnsMixedForBareQuestionMark() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("?")))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+        }
+    }
 }

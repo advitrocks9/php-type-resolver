@@ -32,9 +32,11 @@ private fun findMatchingTag(tags: List<DocTag>, variableName: String): Pair<Stri
         .firstOrNull { it.second == null || it.second == variableName }
 }
 
-/** Resolves a type string into a PhpType, handling union types. */
+/** Resolves a type string into a PhpType, handling nullable shorthand and unions. */
 private fun resolveTypeString(typeString: String): PhpType {
-    val parts = typeString.split("|").filter { it.isNotEmpty() }
+    if (typeString == "?") return TypeFactory.createType(MIXED)
+    val expanded = if (typeString.startsWith("?")) typeString.drop(1) + "|null" else typeString
+    val parts = expanded.split("|").filter { it.isNotEmpty() }
     if (parts.isEmpty()) return TypeFactory.createType(MIXED)
     if (parts.size == 1) return TypeFactory.createType(parts[0])
     return TypeFactory.createUnionType(parts.map { TypeFactory.createType(it) })
