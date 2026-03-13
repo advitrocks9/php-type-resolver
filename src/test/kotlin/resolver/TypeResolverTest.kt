@@ -7,6 +7,7 @@ import resolver.api.DocTag
 import resolver.api.PhpDocBlock
 import resolver.api.PhpVariable
 import resolver.api.TypeFactory
+import resolver.api.UnionType
 
 class TypeResolverTest {
 
@@ -81,6 +82,40 @@ class TypeResolverTest {
         fun unnamedTagAppliesToAnyVariable() {
             val variable = makeVariable("\$anything", makeDocBlock(listOf("User")))
             assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+        }
+    }
+
+    @Nested
+    inner class UnionTypes {
+
+        @Test
+        fun resolvesUnionTypeForTwoTypes() {
+            val variable = makeVariable("\$id", makeDocBlock(listOf("string|int")))
+            val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun resolvesUnionTypeForThreeTypes() {
+            val variable = makeVariable("\$val", makeDocBlock(listOf("string|int|null")))
+            val expected = TypeFactory.createUnionType(listOf(
+                TypeFactory.createType("string"),
+                TypeFactory.createType("int"),
+                TypeFactory.createType("null")
+            ))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun ignoresTrailingPipeInTypeString() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("string|")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun ignoresLeadingPipeInTypeString() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("|string")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
         }
     }
 }

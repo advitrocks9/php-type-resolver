@@ -32,7 +32,10 @@ private fun findMatchingTag(tags: List<DocTag>, variableName: String): Pair<Stri
         .firstOrNull { it.second == null || it.second == variableName }
 }
 
-/** Resolves a type string into a PhpType. */
+/** Resolves a type string into a PhpType, handling union types. */
 private fun resolveTypeString(typeString: String): PhpType {
-    return TypeFactory.createType(typeString)
+    val parts = typeString.split("|").filter { it.isNotEmpty() }
+    if (parts.isEmpty()) return TypeFactory.createType(MIXED)
+    if (parts.size == 1) return TypeFactory.createType(parts[0])
+    return TypeFactory.createUnionType(parts.map { TypeFactory.createType(it) })
 }
