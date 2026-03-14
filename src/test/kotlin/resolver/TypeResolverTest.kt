@@ -157,4 +157,38 @@ class TypeResolverTest {
             assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
         }
     }
+
+    @Nested
+    inner class WhitespaceAndFormatting {
+
+        @Test
+        fun trimsLeadingAndTrailingWhitespaceFromTagValue() {
+            val variable = makeVariable("\$u", makeDocBlock(listOf("  User  ")))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun handlesExtraWhitespaceBetweenTokens() {
+            val variable = makeVariable("\$log", makeDocBlock(listOf("Logger    \$log")))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun ignoresDescriptionTextAfterVariableName() {
+            val variable = makeVariable("\$admin", makeDocBlock(listOf("User \$admin the main admin")))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun skipsEmptyTagValue() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("", "string \$x")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun skipsWhitespaceOnlyTagValue() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("   ", "string \$x")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
+    }
 }
