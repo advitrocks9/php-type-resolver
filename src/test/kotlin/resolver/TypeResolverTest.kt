@@ -117,6 +117,13 @@ class TypeResolverTest {
             val variable = makeVariable("\$x", makeDocBlock(listOf("|string")))
             assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
         }
+
+        @Test
+        fun resolvesUnionTypeOnNamedTag() {
+            val variable = makeVariable("\$id", makeDocBlock(listOf("string|int \$id")))
+            val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
     }
 
     @Nested
@@ -133,6 +140,13 @@ class TypeResolverTest {
         fun returnsMixedForBareQuestionMark() {
             val variable = makeVariable("\$x", makeDocBlock(listOf("?")))
             assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun handlesNullableShorthandOnNamedTag() {
+            val variable = makeVariable("\$u", makeDocBlock(listOf("?User \$u")))
+            val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("User"), TypeFactory.createType("null")))
+            assertEquals(expected, inferTypeFromDoc(variable))
         }
     }
 
