@@ -25,11 +25,12 @@ private fun parseTagValue(value: String): Pair<String, String?> {
     return Pair(typeString, varName)
 }
 
-/** Finds the first tag that matches the variable name or has no variable name. */
+/** Finds the best matching tag using explicit name first, then unnamed fallback. */
 private fun findMatchingTag(tags: List<DocTag>, variableName: String): Pair<String, String?>? {
-    return tags.map { parseTagValue(it.getValue()) }
-        .filter { it.first.isNotEmpty() }
-        .firstOrNull { it.second == null || it.second == variableName }
+    val parsed = tags.map { parseTagValue(it.getValue()) }.filter { it.first.isNotEmpty() }
+    val explicit = parsed.firstOrNull { it.second == variableName }
+    if (explicit != null) return explicit
+    return parsed.firstOrNull { it.second == null }
 }
 
 /** Resolves a type string into a PhpType, handling nullable shorthand and unions. */

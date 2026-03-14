@@ -135,4 +135,26 @@ class TypeResolverTest {
             assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
         }
     }
+
+    @Nested
+    inner class MultipleTags {
+
+        @Test
+        fun returnsCorrectTypeFromMultipleTagsWhenOneMatches() {
+            val variable = makeVariable("\$name", makeDocBlock(listOf("int \$id", "string \$name")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun returnsMixedWhenMultipleTagsNoneMatch() {
+            val variable = makeVariable("\$age", makeDocBlock(listOf("int \$id", "string \$name")))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun prefersExplicitNameMatchOverUnnamedTag() {
+            val variable = makeVariable("\$log", makeDocBlock(listOf("object", "Logger \$log")))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+        }
+    }
 }
