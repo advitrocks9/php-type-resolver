@@ -42,3 +42,4 @@ private fun resolveTypeString(typeString: String): PhpType {
     if (parts.size == 1) return TypeFactory.createType(parts[0])
     return TypeFactory.createUnionType(parts.map { TypeFactory.createType(it) })
 }
+
