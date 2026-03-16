@@ -124,6 +124,26 @@ class TypeResolverTest {
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
             assertEquals(expected, inferTypeFromDoc(variable))
         }
+
+        @Test
+        fun unionTypeEqualityIsOrderIndependent() {
+            val stringType = TypeFactory.createType("string")
+            val intType = TypeFactory.createType("int")
+            assertEquals(UnionType(listOf(stringType, intType)), UnionType(listOf(intType, stringType)))
+        }
+
+        @Test
+        fun deduplicatesDuplicateTypesInUnion() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("string|string|int")))
+            val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun collapsesFullyDuplicateUnionToSingleType() {
+            val variable = makeVariable("\$x", makeDocBlock(listOf("string|string")))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
     }
 
     @Nested
@@ -203,6 +223,36 @@ class TypeResolverTest {
         fun skipsWhitespaceOnlyTagValue() {
             val variable = makeVariable("\$x", makeDocBlock(listOf("   ", "string \$x")))
             assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+        }
+    }
+
+    @Nested
+    inner class GenericTypes {
+
+        @Test
+        fun preservesGenericTypeWithInternalPipe() {
+            val variable = makeVariable("\$items", makeDocBlock(listOf("array<string|int>")))
+            assertEquals(TypeFactory.createType("array<string|int>"), inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun splitsTopLevelUnionAroundGenericType() {
+            val variable = makeVariable("\$items", makeDocBlock(listOf("array<string|int>|null")))
+            val expected = TypeFactory.createUnionType(listOf(
+                TypeFactory.createType("array<string|int>"),
+                TypeFactory.createType("null")
+            ))
+            assertEquals(expected, inferTypeFromDoc(variable))
+        }
+
+        @Test
+        fun handlesNestedGenericsInUnion() {
+            val variable = makeVariable("\$map", makeDocBlock(listOf("Map<string, list<int|float>>|null")))
+            val expected = TypeFactory.createUnionType(listOf(
+                TypeFactory.createType("Map<string, list<int|float>>"),
+                TypeFactory.createType("null")
+            ))
+            assertEquals(expected, inferTypeFromDoc(variable))
         }
     }
 }
