@@ -32,21 +32,26 @@ When multiple `@var` tags exist in a single doc block, an explicit name match al
 
 Nullable shorthand is expanded before union splitting. `?User` becomes `User|null`, then the pipe-splitting logic handles it the same way as any other union. This avoids duplicating the union construction code.
 
-If splitting on `|` produces a single type after filtering empty segments, the result is a plain `PhpType` rather than a `UnionType` with one element.
+Union splitting is generics-aware: pipes inside angle brackets (e.g. `array<string|int>`) are not treated as union separators. A single-pass depth counter tracks `<`/`>` nesting, so types like `Map<string, list<int|float>>|null` split correctly into the generic type and `null` without needing a full parser.
+
+Duplicate types within a union are collapsed. `string|string|int` resolves to `string|int`, and `string|string` collapses to a plain `string` rather than a single-element union.
+
+If splitting produces a single type after filtering empty segments and deduplication, the result is a plain `PhpType` rather than a `UnionType` with one element.
 
 ## Design Decisions
 
-**Helpers over monolith.** The resolver is split into three small private functions (`parseTagValue`, `findMatchingTag`, `resolveTypeString`) rather than one large function. Each does one thing and is independently testable.
+**Helpers over monolith.** The resolver is split into small private functions (`parseTagValue`, `resolveTypeString`, `splitTopLevelUnion`) rather than one large function. Each does one thing and is independently testable.
 
 **Two-pass matching.** A single-pass approach with inline priority tracking would work but is harder to read. Two passes makes the precedence rule (explicit name match > unnamed tag) obvious from the code structure.
 
 **No regex for type parsing.** Splitting on `|` and checking for a `?` prefix is enough. Regex would be overkill for this grammar and harder to follow.
 
+**Order-independent union equality.** `UnionType` overrides `equals`/`hashCode` to use set-based comparison, so `string|int` and `int|string` are considered the same type. The internal list preserves authored order for display purposes.
+
 ## Limitations
 
 There are a few things this implementation does not handle that a full PHPDoc type resolver would need:
 
-- Generic types like `array<string, User>` or `Collection<Item>`. A pipe inside angle brackets would currently be treated as a union separator.
 - Intersection types (`A&B`), which are valid in PHP 8.1+ doc blocks.
 - Array shapes like `array{id: int, name: string}`.
 - The `self`, `static`, and `parent` pseudo-types, which would need class context to resolve.
@@ -55,12 +60,13 @@ These are out of scope for this task but would be natural next steps.
 
 ## Test Coverage
 
-23 tests organized into 7 groups:
+31 tests organized into 8 groups:
 
 - **Fallback behavior**: null doc block, empty tag list
 - **Simple type resolution**: standard types, fully qualified class names
 - **Variable name matching**: named match, mismatch, unnamed tags
-- **Union types**: two/three members, malformed pipes, unions on named tags
+- **Union types**: two/three members, malformed pipes, unions on named tags, order-independent equality, deduplication
 - **Nullable shorthand**: `?Type` expansion, bare `?`, nullable on named tags
 - **Multiple tags**: correct selection, no match, explicit over unnamed precedence
 - **Whitespace and formatting**: trimming, extra spaces, descriptions, empty/whitespace-only values
+- **Generic types**: internal pipes preserved, top-level union splitting around generics, nested generics, whitespace inside generics with variable name, unclosed generic

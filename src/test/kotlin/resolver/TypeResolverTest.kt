@@ -31,13 +31,18 @@ class TypeResolverTest {
         }
     }
 
+    private fun phpVar(name: String, vararg tags: String): PhpVariable =
+        makeVariable(name, if (tags.isNotEmpty()) makeDocBlock(tags.toList()) else null)
+
+    private fun phpVarNoDoc(name: String): PhpVariable =
+        makeVariable(name, null)
+
     @Nested
     inner class FallbackBehavior {
 
         @Test
         fun returnsMixedWhenDocBlockIsNull() {
-            val variable = makeVariable("\$x", null)
-            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(phpVarNoDoc("\$x")))
         }
 
         @Test
@@ -52,14 +57,12 @@ class TypeResolverTest {
 
         @Test
         fun resolvesSimpleTypeFromUnnamedTag() {
-            val variable = makeVariable("\$user", makeDocBlock(listOf("User")))
-            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(phpVar("\$user", "User")))
         }
 
         @Test
         fun resolvesFullyQualifiedClassName() {
-            val variable = makeVariable("\$user", makeDocBlock(listOf("\\App\\Models\\User")))
-            assertEquals(TypeFactory.createType("\\App\\Models\\User"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("\\App\\Models\\User"), inferTypeFromDoc(phpVar("\$user", "\\App\\Models\\User")))
         }
     }
 
@@ -68,20 +71,17 @@ class TypeResolverTest {
 
         @Test
         fun returnsMatchingTypeWhenTagVariableMatchesInspectedVariable() {
-            val variable = makeVariable("\$log", makeDocBlock(listOf("Logger \$log")))
-            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(phpVar("\$log", "Logger \$log")))
         }
 
         @Test
         fun returnsMixedWhenTagVariableDoesNotMatch() {
-            val variable = makeVariable("\$guest", makeDocBlock(listOf("Admin \$adm")))
-            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(phpVar("\$guest", "Admin \$adm")))
         }
 
         @Test
         fun unnamedTagAppliesToAnyVariable() {
-            val variable = makeVariable("\$anything", makeDocBlock(listOf("User")))
-            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(phpVar("\$anything", "User")))
         }
     }
 
@@ -90,9 +90,8 @@ class TypeResolverTest {
 
         @Test
         fun resolvesUnionTypeForTwoTypes() {
-            val variable = makeVariable("\$id", makeDocBlock(listOf("string|int")))
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$id", "string|int")))
         }
 
         @Test
@@ -108,21 +107,18 @@ class TypeResolverTest {
 
         @Test
         fun ignoresTrailingPipeInTypeString() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("string|")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$x", "string|")))
         }
 
         @Test
         fun ignoresLeadingPipeInTypeString() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("|string")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$x", "|string")))
         }
 
         @Test
         fun resolvesUnionTypeOnNamedTag() {
-            val variable = makeVariable("\$id", makeDocBlock(listOf("string|int \$id")))
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$id", "string|int \$id")))
         }
 
         @Test
@@ -134,15 +130,13 @@ class TypeResolverTest {
 
         @Test
         fun deduplicatesDuplicateTypesInUnion() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("string|string|int")))
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("string"), TypeFactory.createType("int")))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$x", "string|string|int")))
         }
 
         @Test
         fun collapsesFullyDuplicateUnionToSingleType() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("string|string")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$x", "string|string")))
         }
     }
 
@@ -151,22 +145,19 @@ class TypeResolverTest {
 
         @Test
         fun handlesNullableShorthandAsUnionWithNull() {
-            val variable = makeVariable("\$user", makeDocBlock(listOf("?User")))
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("User"), TypeFactory.createType("null")))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$user", "?User")))
         }
 
         @Test
         fun returnsMixedForBareQuestionMark() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("?")))
-            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(phpVar("\$x", "?")))
         }
 
         @Test
         fun handlesNullableShorthandOnNamedTag() {
-            val variable = makeVariable("\$u", makeDocBlock(listOf("?User \$u")))
             val expected = TypeFactory.createUnionType(listOf(TypeFactory.createType("User"), TypeFactory.createType("null")))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$u", "?User \$u")))
         }
     }
 
@@ -175,20 +166,17 @@ class TypeResolverTest {
 
         @Test
         fun returnsCorrectTypeFromMultipleTagsWhenOneMatches() {
-            val variable = makeVariable("\$name", makeDocBlock(listOf("int \$id", "string \$name")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$name", "int \$id", "string \$name")))
         }
 
         @Test
         fun returnsMixedWhenMultipleTagsNoneMatch() {
-            val variable = makeVariable("\$age", makeDocBlock(listOf("int \$id", "string \$name")))
-            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("mixed"), inferTypeFromDoc(phpVar("\$age", "int \$id", "string \$name")))
         }
 
         @Test
         fun prefersExplicitNameMatchOverUnnamedTag() {
-            val variable = makeVariable("\$log", makeDocBlock(listOf("object", "Logger \$log")))
-            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(phpVar("\$log", "object", "Logger \$log")))
         }
     }
 
@@ -197,32 +185,27 @@ class TypeResolverTest {
 
         @Test
         fun trimsLeadingAndTrailingWhitespaceFromTagValue() {
-            val variable = makeVariable("\$u", makeDocBlock(listOf("  User  ")))
-            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(phpVar("\$u", "  User  ")))
         }
 
         @Test
         fun handlesExtraWhitespaceBetweenTokens() {
-            val variable = makeVariable("\$log", makeDocBlock(listOf("Logger    \$log")))
-            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("Logger"), inferTypeFromDoc(phpVar("\$log", "Logger    \$log")))
         }
 
         @Test
         fun ignoresDescriptionTextAfterVariableName() {
-            val variable = makeVariable("\$admin", makeDocBlock(listOf("User \$admin the main admin")))
-            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("User"), inferTypeFromDoc(phpVar("\$admin", "User \$admin the main admin")))
         }
 
         @Test
         fun skipsEmptyTagValue() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("", "string \$x")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$x", "", "string \$x")))
         }
 
         @Test
         fun skipsWhitespaceOnlyTagValue() {
-            val variable = makeVariable("\$x", makeDocBlock(listOf("   ", "string \$x")))
-            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("string"), inferTypeFromDoc(phpVar("\$x", "   ", "string \$x")))
         }
     }
 
@@ -231,28 +214,35 @@ class TypeResolverTest {
 
         @Test
         fun preservesGenericTypeWithInternalPipe() {
-            val variable = makeVariable("\$items", makeDocBlock(listOf("array<string|int>")))
-            assertEquals(TypeFactory.createType("array<string|int>"), inferTypeFromDoc(variable))
+            assertEquals(TypeFactory.createType("array<string|int>"), inferTypeFromDoc(phpVar("\$items", "array<string|int>")))
         }
 
         @Test
         fun splitsTopLevelUnionAroundGenericType() {
-            val variable = makeVariable("\$items", makeDocBlock(listOf("array<string|int>|null")))
             val expected = TypeFactory.createUnionType(listOf(
                 TypeFactory.createType("array<string|int>"),
                 TypeFactory.createType("null")
             ))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$items", "array<string|int>|null")))
         }
 
         @Test
         fun handlesNestedGenericsInUnion() {
-            val variable = makeVariable("\$map", makeDocBlock(listOf("Map<string, list<int|float>>|null")))
             val expected = TypeFactory.createUnionType(listOf(
                 TypeFactory.createType("Map<string, list<int|float>>"),
                 TypeFactory.createType("null")
             ))
-            assertEquals(expected, inferTypeFromDoc(variable))
+            assertEquals(expected, inferTypeFromDoc(phpVar("\$map", "Map<string, list<int|float>>|null")))
+        }
+
+        @Test
+        fun parsesGenericTypeWithWhitespaceAndVariableName() {
+            assertEquals(TypeFactory.createType("Map<string, int>"), inferTypeFromDoc(phpVar("\$m", "Map<string, int> \$m")))
+        }
+
+        @Test
+        fun treatsUnclosedGenericAsPlainType() {
+            assertEquals(TypeFactory.createType("array<string"), inferTypeFromDoc(phpVar("\$items", "array<string")))
         }
     }
 }

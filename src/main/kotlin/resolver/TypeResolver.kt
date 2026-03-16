@@ -6,8 +6,13 @@ import resolver.api.TypeFactory
 
 private const val MIXED = "mixed"
 private val WHITESPACE = "\\s+".toRegex()
-
-/** Resolves the type of a PHP variable from its @var doc tag. */
+/**
+ * Infers the [PhpType] of [variable] from its `@var` doc tag.
+ *
+ * Explicit name matches (e.g. `@var Logger $log`) take priority over unnamed tags.
+ * Nullable shorthand (`?User`) is expanded to `User|null`.
+ * Returns `mixed` if no doc block, no `@var` tags, or no matching tag is found.
+ */
 fun inferTypeFromDoc(variable: PhpVariable): PhpType {
     val docBlock = variable.getDocBlock() ?: return TypeFactory.createType(MIXED)
     val tags = docBlock.getTagsByName("var")
@@ -40,7 +45,6 @@ private fun resolveTypeString(typeString: String): PhpType {
     if (parts.size == 1) return TypeFactory.createType(parts[0])
     return TypeFactory.createUnionType(parts.map { TypeFactory.createType(it) })
 }
-
 private fun splitTopLevelUnion(typeString: String): List<String> {
     val parts = mutableListOf<String>()
     val current = StringBuilder()
